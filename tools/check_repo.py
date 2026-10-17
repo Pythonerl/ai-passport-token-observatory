@@ -25,6 +25,10 @@ SECRET_PATTERNS = {
     "GitHub token": re.compile(r"(?:ghp_|github_pat_)[A-Za-z0-9_]{20,}"),
     "AWS access key": re.compile(r"AKIA[0-9A-Z]{16}"),
     "private key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
+    # LLM provider keys of the kind this application embeds (DeepSeek/Kimi
+    # style sk-…). app_config.h is git-ignored; this catches accidental
+    # copies anywhere else in tracked files.
+    "LLM API key": re.compile(r"sk-[A-Za-z0-9]{24,}"),
 }
 ROOT_MARKDOWN_ALLOWLIST = {
     "AGENTS.md",
