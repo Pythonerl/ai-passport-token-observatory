@@ -13,7 +13,7 @@ FoloToy AI Passport 的派生应用:一块可佩戴的仪表盘,通过 Wi-Fi 周
 | --- | --- | --- |
 | DeepSeek | `GET https://api.deepseek.com/user/balance` | 账户余额(元),赠金/充值拆分 |
 | Kimi (Moonshot) | `GET https://api.moonshot.cn/v1/users/me/balance` | 可用余额,代金券/现金拆分 |
-| GLM Coding Plan | `GET {host}/api/monitor/usage/quota/limit` | 近 5 小时 Token 额度用量 %,本月额度 % |
+| GLM Coding Plan ×3 | `GET {host}/api/monitor/usage/quota/limit` | 近 5 小时 Token 额度用量 %,本月额度 %;最多 3 个套餐账户各占一张卡片 |
 | Codex / 自定义 | 任意返回 JSON 数值的端点 | 按配置的 JSON 路径取值 |
 
 GLM 额度端点与智谱/Z.ai 官方 `glm-plan-usage` 插件使用的相同。Codex 订阅

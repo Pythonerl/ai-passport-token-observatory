@@ -38,7 +38,9 @@ static uint32_t prov_color(provider_id_t id)
     switch (id) {
     case PROV_DEEPSEEK: return 0x4D6BFE;
     case PROV_KIMI: return 0xFF8A3D;
-    case PROV_GLM: return 0x00B2A9;
+    case PROV_GLM_1:
+    case PROV_GLM_2:
+    case PROV_GLM_3: return 0x00B2A9; // 同一服务商家族共用主题色,按名字区分
     default: return 0x8B5CF6;
     }
 }
@@ -320,7 +322,16 @@ static void update_status_page(const app_snapshot_t *s)
     default:
         lv_obj_set_style_text_color(s_st_icon, lv_color_hex(C_ERR), 0);
         lv_label_set_text(s_st_icon, LV_SYMBOL_WARNING);
-        lv_label_set_text_fmt(s_st_text, "连接失败(code %d)\n检查密码与 2.4G 信号", w->fail_code);
+        if (w->fail_code < 0) {
+            // -2 = 已关联但 DHCP 拿不到 IP:常见于弱信号或路由器 DHCP 忙。
+            lv_label_set_text(s_st_text,
+                "已连上路由器,但获取IP超时\n靠近路由器或重启路由器\n再按 OK 重试");
+        } else if (w->fail_code == 15 || w->fail_code == 204) {
+            // 四次握手失败,通常是密码不对。
+            lv_label_set_text(s_st_text, "连接失败:密码可能不正确\n核对 Wi-Fi 密码后按 OK 重试");
+        } else {
+            lv_label_set_text_fmt(s_st_text, "连接失败(code %d)\n检查密码与 2.4G 信号", w->fail_code);
+        }
         lv_label_set_text(s_st_hint, "按 OK 重试");
         break;
     }

@@ -22,7 +22,10 @@
 
 // ---- GLM Coding Plan(智谱 https://open.bigmodel.cn 账户的 API Key;
 //      注意用量接口用的是 Coding Plan 同一套 Key,无需 Bearer 前缀)----
-#define APP_GLM_TOKEN ""
+// 支持最多 3 个套餐账户,各占一张卡片;不用的留空字符串即可。
+#define APP_GLM_TOKEN_PRO_ME    ""  // 卡片显示「GLM Pro」
+#define APP_GLM_TOKEN_MAX_GROUP ""  // 卡片显示「GLM Max 团」
+#define APP_GLM_TOKEN_MAX_LML   ""  // 卡片显示「GLM Max LML」
 // 国内版填 https://open.bigmodel.cn;Z.ai 国际版填 https://api.z.ai
 #define APP_GLM_HOST "https://open.bigmodel.cn"
 

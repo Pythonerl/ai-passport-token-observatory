@@ -6,12 +6,19 @@
 
 #include "jpath.h"
 
+bool provider_is_glm(provider_id_t id)
+{
+    return id == PROV_GLM_1 || id == PROV_GLM_2 || id == PROV_GLM_3;
+}
+
 const char *provider_name(provider_id_t id)
 {
     switch (id) {
     case PROV_DEEPSEEK: return "DeepSeek";
     case PROV_KIMI: return "Kimi";
-    case PROV_GLM: return "GLM 套餐";
+    case PROV_GLM_1: return "GLM Pro";
+    case PROV_GLM_2: return "GLM Max 团";
+    case PROV_GLM_3: return "GLM Max LML";
     case PROV_CODEX: return "Codex";
     default: return "?";
     }
@@ -58,7 +65,9 @@ int provider_parse_body(provider_id_t id, const char *body, provider_metrics_t *
         num_with_fallback(body, "data.cash_balance", "cash_balance", &out->sub_b);
         return 0;
     }
-    case PROV_GLM: {
+    case PROV_GLM_1:
+    case PROV_GLM_2:
+    case PROV_GLM_3: {
         // {"code":200,"data":{"limits":[{"type":"TOKENS_LIMIT","percentage":30.5},
         //   {"type":"TIME_LIMIT","percentage":12.3,"currentValue":"2025-09"}]}}
         size_t probe_len = 0;
@@ -131,7 +140,9 @@ void provider_format(provider_id_t id, const provider_metrics_t *m, provider_vie
         snprintf(view->sub1, sizeof(view->sub1), "代金券 %.2f", m->sub_a);
         snprintf(view->sub2, sizeof(view->sub2), "现金 %.2f", m->sub_b);
         break;
-    case PROV_GLM:
+    case PROV_GLM_1:
+    case PROV_GLM_2:
+    case PROV_GLM_3:
         snprintf(view->big, sizeof(view->big), "%.1f%%", m->primary);
         snprintf(view->primary_label, sizeof(view->primary_label), "近5小时Token额度");
         {

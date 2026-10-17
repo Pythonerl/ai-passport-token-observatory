@@ -14,8 +14,7 @@ Supported data sources (all read with the user's own keys, end to end TLS):
 | --- | --- | --- |
 | DeepSeek | `GET https://api.deepseek.com/user/balance` | account balance (CNY), granted/topped-up split |
 | Kimi (Moonshot) | `GET https://api.moonshot.cn/v1/users/me/balance` | available balance, voucher/cash split |
-| GLM Coding Plan | `GET {host}/api/monitor/usage/quota/limit` | 5-hour token quota usage %, monthly quota % |
-| Codex / custom | any JSON endpoint returning a number | value at a configured JSON path |
+| GLM Coding Plan ×3 | `GET {host}/api/monitor/usage/quota/limit` | 5-hour token quota usage %, monthly quota %; up to three plan accounts get one card each |
 
 The GLM quota endpoint is the same one used by Zhipu/Z.ai's official
 `glm-plan-usage` plugin. Codex subscription usage has no public API; the app

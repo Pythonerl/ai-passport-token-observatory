@@ -14,10 +14,15 @@
 typedef enum {
     PROV_DEEPSEEK = 0,
     PROV_KIMI,
-    PROV_GLM,
+    PROV_GLM_1,   // GLM Coding Plan 套餐 1(见 app_config 的 *_PRO_ME)
+    PROV_GLM_2,   // GLM Coding Plan 套餐 2(*_MAX_GROUP)
+    PROV_GLM_3,   // GLM Coding Plan 套餐 3(*_MAX_LML)
     PROV_CODEX,
     PROV_COUNT,
 } provider_id_t;
+
+// GLM 槽位判定(供遍历时区分同一家的多个套餐)。
+bool provider_is_glm(provider_id_t id);
 
 // 从响应解析出的原始指标(数值),不含任何显示格式。
 typedef struct {
