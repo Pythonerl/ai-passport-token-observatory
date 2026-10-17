@@ -1,6 +1,7 @@
 // main/wifi_sta.h —— STA 连接管理(设备侧)。在工作任务里调用,勿在按键回调中使用。
 #pragma once
 
+#include "esp_err.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -20,6 +21,10 @@ typedef struct {
 
 // 读取当前状态快照(内部字段 volatile,读取安全)。
 const wifi_sta_status_t *wifi_sta_status(void);
+
+// 提前初始化 netif/事件环(幂等)。udp 日志与早期 socket 使用者需要
+// 在 Wi-Fi 连接之前就拥有可用的 lwIP 栈。
+esp_err_t wifi_sta_netif_prepare(void);
 
 // 阻塞式连接:初始化 NVS/netif/事件环/wifi,最多尝试 max_attempts 次,
 // 每次等 got_ip 超时 per_attempt_timeout_ms。已连接时直接返回 true。

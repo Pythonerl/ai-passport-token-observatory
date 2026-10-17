@@ -14,6 +14,7 @@
 #include "freertos/task.h"
 #include "net_fetch.h"
 #include "nvs.h"
+#include "udp_log.h"
 
 // 编译期配置:优先使用用户的 app_config.h,缺失时退回示例占位值(按未配置处理)。
 #if __has_include("app_config.h")
@@ -26,11 +27,13 @@ static const char *TAG = "app_core";
 
 #define NVS_NS "tokmon"
 #define NVS_KEY_INTERVAL "interval"
-#define WORKER_STACK 6144
+// esp_http_client + mbedTLS 握手需要较大栈;IDF 文档建议 HTTPS 场景 ≥8KB。
+#define WORKER_STACK 10240
 #define FETCH_TIMEOUT_MS 12000
 #define FETCH_MAX_BODY 8192
-#define WIFI_MAX_ATTEMPTS 3
-#define WIFI_PER_ATTEMPT_MS 15000
+// 弱信号/漫游型路由器下 DHCP 可能多次超时,多给几次机会。
+#define WIFI_MAX_ATTEMPTS 8
+#define WIFI_PER_ATTEMPT_MS 12000
 
 typedef enum {
     WORKER_MSG_REFRESH = 1,
@@ -54,12 +57,46 @@ static bool str_set(const char *s)
     return s && s[0] && strncmp(s, "YourWifi", 8) != 0;
 }
 
+// GLM 三个套餐槽位。槽位 1 同时兼容旧的单账号宏 APP_GLM_TOKEN。
+#if !defined(APP_GLM_TOKEN_1) && defined(APP_GLM_TOKEN_PRO_ME)
+#define APP_GLM_TOKEN_1 APP_GLM_TOKEN_PRO_ME
+#elif !defined(APP_GLM_TOKEN_1) && defined(APP_GLM_TOKEN)
+#define APP_GLM_TOKEN_1 APP_GLM_TOKEN
+#endif
+#if !defined(APP_GLM_TOKEN_2) && defined(APP_GLM_TOKEN_MAX_GROUP)
+#define APP_GLM_TOKEN_2 APP_GLM_TOKEN_MAX_GROUP
+#endif
+#if !defined(APP_GLM_TOKEN_3) && defined(APP_GLM_TOKEN_MAX_LML)
+#define APP_GLM_TOKEN_3 APP_GLM_TOKEN_MAX_LML
+#endif
+#ifndef APP_GLM_TOKEN_1
+#define APP_GLM_TOKEN_1 ""
+#endif
+#ifndef APP_GLM_TOKEN_2
+#define APP_GLM_TOKEN_2 ""
+#endif
+#ifndef APP_GLM_TOKEN_3
+#define APP_GLM_TOKEN_3 ""
+#endif
+
+static const char *glm_token(provider_id_t id)
+{
+    switch (id) {
+    case PROV_GLM_1: return APP_GLM_TOKEN_1;
+    case PROV_GLM_2: return APP_GLM_TOKEN_2;
+    case PROV_GLM_3: return APP_GLM_TOKEN_3;
+    default: return NULL;
+    }
+}
+
 static bool prov_configured(provider_id_t id)
 {
     switch (id) {
     case PROV_DEEPSEEK: return str_set(APP_DEEPSEEK_KEY);
     case PROV_KIMI: return str_set(APP_KIMI_KEY);
-    case PROV_GLM: return str_set(APP_GLM_TOKEN);
+    case PROV_GLM_1:
+    case PROV_GLM_2:
+    case PROV_GLM_3: return str_set(glm_token(id));
     case PROV_CODEX: return str_set(APP_CODEX_URL);
     default: return false;
     }
@@ -83,10 +120,12 @@ static bool build_request(provider_id_t id, char *url, size_t url_len,
         snprintf(auth, auth_len, "Bearer %s", APP_KIMI_KEY);
         snprintf(host, host_len, "api.moonshot.cn");
         return true;
-    case PROV_GLM:
+    case PROV_GLM_1:
+    case PROV_GLM_2:
+    case PROV_GLM_3:
         if (!prov_configured(id)) return false;
         snprintf(url, url_len, "%s/api/monitor/usage/quota/limit", APP_GLM_HOST);
-        snprintf(auth, auth_len, "%s", APP_GLM_TOKEN); // 该接口不带 Bearer 前缀
+        snprintf(auth, auth_len, "%s", glm_token(id)); // 该接口不带 Bearer 前缀
         snprintf(host, host_len, "%s", APP_GLM_HOST);
         return true;
     case PROV_CODEX:
@@ -175,6 +214,7 @@ static void refresh_provider(provider_id_t id)
     normalize_host(host, sizeof(host));
 
     // 网络请求不持锁:一次 HTTPS 可能要数秒,不能阻塞 UI 读快照。
+    ESP_LOGI(TAG, "拉取 %s (%s)…", provider_name(id), host);
     int64_t t0 = now_ms();
     fetch_result_t r = net_fetch_get(url, auth, FETCH_TIMEOUT_MS, FETCH_MAX_BODY);
     int32_t dur = (int32_t)(now_ms() - t0);
@@ -198,11 +238,14 @@ static void refresh_provider(provider_id_t id)
         ps->fetched_at_ms = now_ms();
         ps->state = PROV_RT_OK;
         ps->err[0] = '\0';
+        ESP_LOGI(TAG, "%s: OK %s (%dms)", provider_name(id), ps->view.big, (int)dur);
     } else {
         const char *why = r.err != 0 ? esp_err_to_name((esp_err_t)r.err)
                         : (r.http_status != 200 ? "HTTP" : "解析失败");
         strlcpy(ps->err, why, sizeof(ps->err));
         ps->state = PROV_RT_ERR;
+        ESP_LOGW(TAG, "%s: %s%s%d (%dms)", provider_name(id), why,
+                 r.http_status ? " " : "", r.http_status, (int)dur);
     }
     xSemaphoreGive(s_lock);
     net_fetch_free(&r);
@@ -226,9 +269,11 @@ static void refresh_cycle(void)
     s_snap.refresh_busy = true;
     xSemaphoreGive(s_lock);
 
+    // refresh_provider 内部自管加锁(网络请求不持锁),外层不得持锁调用,
+    // 否则非递归互斥锁自死锁。
     for (int id = 0; id < PROV_COUNT; id++) {
-        xSemaphoreTake(s_lock, portMAX_DELAY);
         refresh_provider((provider_id_t)id);
+        xSemaphoreTake(s_lock, portMAX_DELAY);
         bool ok = s_snap.prov[id].state == PROV_RT_OK;
         xSemaphoreGive(s_lock);
         if (ok) any_ok = true;
@@ -248,6 +293,9 @@ static void worker_task(void *arg)
     (void)arg;
     worker_msg_t msg;
     bool wifi_ok = false;
+
+    // USB 控制台在射频工作后不可靠,尽早把日志切到 UDP 广播。
+    udp_log_start();
 
     for (;;) {
         // 阶段一:连接 Wi-Fi(未配置则等待用户改配置后重试)
@@ -270,9 +318,10 @@ static void worker_task(void *arg)
         xSemaphoreGive(s_lock);
 
         if (!wifi_ok) {
-            // 等待 UI 发来的重试(或刷新请求,同样先重连)
-            ESP_LOGW(TAG, "Wi-Fi 不可用,等待重试请求");
-            xQueueReceive(s_queue, &msg, portMAX_DELAY);
+            // 等待 UI 的重试请求,或 45 秒后自动重试:弱信号/漫游型路由器
+            // 环境下掉线是常态,依赖用户按键体验太差。
+            ESP_LOGW(TAG, "Wi-Fi 不可用,45 秒后自动重试(按 OK 立即重试)");
+            xQueueReceive(s_queue, &msg, pdMS_TO_TICKS(45000));
             continue;
         }
 
@@ -317,6 +366,11 @@ void app_core_start(void)
     s_queue = xQueueCreate(4, sizeof(worker_msg_t));
     if (!s_lock || !s_queue) {
         ESP_LOGE(TAG, "锁/队列创建失败");
+        return;
+    }
+    // lwIP 必须先于工作任务里的任何 socket 操作(udp 日志)就绪。
+    if (wifi_sta_netif_prepare() != ESP_OK) {
+        ESP_LOGE(TAG, "netif/事件环初始化失败");
         return;
     }
     if (xTaskCreate(worker_task, "app_worker", WORKER_STACK, NULL, 4, NULL) != pdPASS) {

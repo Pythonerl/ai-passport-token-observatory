@@ -22,6 +22,24 @@ static esp_netif_t *s_sta_netif;
 static EventGroupHandle_t s_events;
 static bool s_stack_up;
 static bool s_got_ip;
+static bool s_netif_ready;
+static bool s_loop_ready;
+
+// 供 app_core 在工作任务启动前先行初始化(udp_log 的 socket 依赖 lwIP)。
+esp_err_t wifi_sta_netif_prepare(void)
+{
+    if (!s_netif_ready) {
+        esp_err_t err = esp_netif_init();
+        if (err != ESP_OK) return err;
+        s_netif_ready = true;
+    }
+    if (!s_loop_ready) {
+        esp_err_t err = esp_event_loop_create_default();
+        if (err != ESP_OK) return err;
+        s_loop_ready = true;
+    }
+    return ESP_OK;
+}
 
 static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
 {
@@ -69,8 +87,7 @@ bool wifi_sta_connect(const char *ssid, const char *password,
     }
     ESP_ERROR_CHECK(err);
 
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    ESP_ERROR_CHECK(wifi_sta_netif_prepare());
 
     if (!s_stack_up) {
         s_sta_netif = esp_netif_new(&(esp_netif_config_t)ESP_NETIF_DEFAULT_WIFI_STA());
@@ -110,7 +127,10 @@ bool wifi_sta_connect(const char *ssid, const char *password,
         if (s_status.state == WIFI_STA_CONNECTED) return true; // 事件竞态兜底
         if (s_status.attempt >= max_attempts) break;
         s_status.attempt++;
-        ESP_LOGI(TAG, "等待 IP 超时,第 %d 次重试", s_status.attempt);
+        // -2 = 已关联但拿不到 IP(DHCP 超时)的标记;若期间有断连事件,
+        // fail_code 会被真实 reason 覆盖,展示最近一次原因。
+        s_status.fail_code = -2;
+        ESP_LOGW(TAG, "等待 IP 超时,断开后第 %d 次重试", s_status.attempt);
         esp_wifi_disconnect();
         err = esp_wifi_connect();
         if (err != ESP_OK && err != ESP_ERR_WIFI_CONN) ESP_ERROR_CHECK(err);
