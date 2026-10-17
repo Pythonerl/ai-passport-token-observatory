@@ -3,6 +3,7 @@
 #include "demo_test_stubs.h"
 #include <assert.h>
 #include <setjmp.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -29,6 +30,52 @@ void bsp_lvgl_unlock(void) {}
 void lv_label_set_text(lv_obj_t *object, const char *text) {
     (void)object;
     snprintf(test_status, sizeof(test_status), "%s", text);
+}
+
+// LVGL / ui_pixel no-op surface. On Linux CI the demo runtime tests link with
+// --gc-sections and the page-enter UI code is discarded; PE linkers keep those
+// sections, so the symbols must exist here too. Behavior stays irrelevant to
+// the logic under test.
+static lv_obj_t s_stub_obj;
+uint32_t lv_color_hex(uint32_t color) { return color; }
+uint32_t lv_color_black(void) { return 0x000000; }
+uint32_t lv_color_white(void) { return 0xFFFFFF; }
+lv_obj_t *lv_obj_create(lv_obj_t *parent) { (void)parent; return &s_stub_obj; }
+lv_obj_t *lv_label_create(lv_obj_t *parent) { (void)parent; return &s_stub_obj; }
+void lv_obj_set_size(lv_obj_t *o, int w, int h) { (void)o; (void)w; (void)h; }
+void lv_obj_set_width(lv_obj_t *o, int w) { (void)o; (void)w; }
+void lv_obj_set_style_radius(lv_obj_t *o, int r, int s) { (void)o; (void)r; (void)s; }
+void lv_obj_set_style_bg_color(lv_obj_t *o, uint32_t c, int s) { (void)o; (void)c; (void)s; }
+void lv_obj_set_style_border_width(lv_obj_t *o, int w, int s) { (void)o; (void)w; (void)s; }
+void lv_obj_set_style_text_color(lv_obj_t *o, uint32_t c, int s) { (void)o; (void)c; (void)s; }
+void lv_obj_set_style_text_align(lv_obj_t *o, int a, int s) { (void)o; (void)a; (void)s; }
+void lv_obj_set_style_text_font(lv_obj_t *o, const lv_font_t *f, int s) { (void)o; (void)f; (void)s; }
+void lv_obj_center(lv_obj_t *o) { (void)o; }
+void lv_obj_align(lv_obj_t *o, int a, int x, int y) { (void)o; (void)a; (void)x; (void)y; }
+void lv_obj_delete(lv_obj_t *o) { (void)o; }
+void lv_label_set_text_fmt(lv_obj_t *o, const char *format, ...) {
+    (void)o;
+    va_list ap;
+    va_start(ap, format);
+    vsnprintf(test_status, sizeof(test_status), format, ap);
+    va_end(ap);
+}
+void lv_label_set_long_mode(lv_obj_t *o, int m) { (void)o; (void)m; }
+void lv_screen_load(lv_obj_t *screen) { (void)screen; }
+static lv_timer_t s_stub_timer;
+lv_timer_t *lv_timer_create(void (*callback)(lv_timer_t *), unsigned period, void *data) {
+    (void)callback; (void)period; (void)data;
+    return &s_stub_timer;
+}
+void lv_timer_delete(lv_timer_t *timer) { (void)timer; }
+lv_obj_t *ui_pixel_screen_create(const char *title) { (void)title; return &s_stub_obj; }
+lv_obj_t *ui_pixel_panel_create(lv_obj_t *parent, int x, int y, int w, int h, uint32_t color) {
+    (void)parent; (void)x; (void)y; (void)w; (void)h; (void)color;
+    return &s_stub_obj;
+}
+lv_obj_t *ui_pixel_mascot_create(lv_obj_t *parent, int x, int y) {
+    (void)parent; (void)x; (void)y;
+    return &s_stub_obj;
 }
 void bsp_display_backlight(uint8_t percent) { (void)percent; }
 void ui_pixel_mascot_jump(lv_obj_t *mascot) { (void)mascot; }
@@ -163,6 +210,15 @@ void vSemaphoreDelete(SemaphoreHandle_t sem) {
 
 esp_err_t demo_radio_nvs_prepare(void) { return ESP_OK; }
 esp_err_t demo_radio_network_prepare(void) { return ESP_OK; }
+int esp_sleep_get_wakeup_cause(void) { return 0; }
+esp_err_t esp_wifi_scan_get_ap_num(uint16_t *count) { *count = 0; return ESP_OK; }
+esp_err_t esp_wifi_scan_get_ap_records(uint16_t *count, wifi_ap_record_t *records) {
+    (void)records;
+    *count = 0;
+    return ESP_OK;
+}
+// 其余 Wi-Fi 栈符号由 test_demo_wifi_runtime.c 自带故障注入版本;
+// 其它 demo 测试不含这些调用路径,此处无需定义。
 esp_err_t nimble_port_init(void) { return ESP_OK; }
 esp_err_t nimble_port_deinit(void) {
     test_nimble_deinits++;

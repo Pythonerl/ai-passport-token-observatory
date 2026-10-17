@@ -91,7 +91,10 @@ class VendoredDocumentationTest(unittest.TestCase):
             with self.subTest(name=name):
                 errors = self.document_errors([self.document(name)])
                 self.assertEqual(len(errors), 2)
-                self.assertTrue(all(name in error for error in errors))
+                # str(Path) uses the platform separator; match either form so
+                # the assertion also holds on Windows hosts.
+                posix_errors = [error.replace("\\", "/") for error in errors]
+                self.assertTrue(all(name in error for error in posix_errors))
 
     def test_valid_first_party_pair_and_links_still_pass(self) -> None:
         files = [

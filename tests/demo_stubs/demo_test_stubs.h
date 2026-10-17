@@ -97,6 +97,8 @@ extern const lv_font_t lv_font_montserrat_14;
 #define LV_ALIGN_TOP_MID 1
 #define LV_ALIGN_TOP_LEFT 2
 uint32_t lv_color_hex(uint32_t color);
+uint32_t lv_color_black(void);
+uint32_t lv_color_white(void);
 lv_obj_t *lv_obj_create(lv_obj_t *parent);
 lv_obj_t *lv_label_create(lv_obj_t *parent);
 void lv_obj_set_size(lv_obj_t *object, int width, int height);
@@ -148,6 +150,9 @@ esp_err_t esp_event_handler_instance_register(esp_event_base_t base, int32_t id,
     esp_event_handler_instance_t *instance);
 esp_err_t esp_event_handler_instance_unregister(esp_event_base_t base, int32_t id,
     esp_event_handler_instance_t instance);
+esp_err_t esp_event_loop_create_default(void);
+esp_err_t esp_netif_init(void);
+esp_err_t nvs_flash_init(void);
 
 struct ble_gap_event { int type; };
 struct ble_hs_adv_fields { int flags; const uint8_t *name; size_t name_len; int name_is_complete; };
