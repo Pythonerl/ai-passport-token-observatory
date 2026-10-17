@@ -11,12 +11,14 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+// 顺序即仪表盘卡片顺序:GLM 三个套餐在最前,DeepSeek 次之,Kimi 其后,
+// Codex(可选自定义端点)固定在末尾。
 typedef enum {
-    PROV_DEEPSEEK = 0,
+    PROV_GLM_1 = 0,  // GLM Coding Plan 套餐 1(见 app_config 的 *_PRO_ME)
+    PROV_GLM_2,      // GLM Coding Plan 套餐 2(*_MAX_GROUP)
+    PROV_GLM_3,      // GLM Coding Plan 套餐 3(*_MAX_LML)
+    PROV_DEEPSEEK,
     PROV_KIMI,
-    PROV_GLM_1,   // GLM Coding Plan 套餐 1(见 app_config 的 *_PRO_ME)
-    PROV_GLM_2,   // GLM Coding Plan 套餐 2(*_MAX_GROUP)
-    PROV_GLM_3,   // GLM Coding Plan 套餐 3(*_MAX_LML)
     PROV_CODEX,
     PROV_COUNT,
 } provider_id_t;

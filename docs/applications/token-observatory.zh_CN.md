@@ -11,9 +11,9 @@ FoloToy AI Passport 的派生应用:一块可佩戴的仪表盘,通过 Wi-Fi 周
 
 | 服务商 | 端点 | 主指标 |
 | --- | --- | --- |
+| GLM Coding Plan ×3 | `GET {host}/api/monitor/usage/quota/limit` | 近 5 小时 Token 额度用量 %,本月额度 %;最多 3 个套餐账户各占一张卡片 |
 | DeepSeek | `GET https://api.deepseek.com/user/balance` | 账户余额(元),赠金/充值拆分 |
 | Kimi (Moonshot) | `GET https://api.moonshot.cn/v1/users/me/balance` | 可用余额,代金券/现金拆分 |
-| GLM Coding Plan ×3 | `GET {host}/api/monitor/usage/quota/limit` | 近 5 小时 Token 额度用量 %,本月额度 %;最多 3 个套餐账户各占一张卡片 |
 | Codex / 自定义 | 任意返回 JSON 数值的端点 | 按配置的 JSON 路径取值 |
 
 GLM 额度端点与智谱/Z.ai 官方 `glm-plan-usage` 插件使用的相同。Codex 订阅
@@ -36,12 +36,19 @@ GLM 额度端点与智谱/Z.ai 官方 `glm-plan-usage` 插件使用的相同。C
 
 ## 配置
 
-把 `main/app_config.example.h` 复制为 `main/app_config.h`,填入 Wi-Fi 与
-各服务商密钥后重新编译。`app_config.h` 已被 git 忽略,仓库密钥扫描也会
-拒绝提交密钥。未配置时刷机,状态页会显示配置指引而不是空仪表盘。
+两种方式配置 Wi-Fi 与各服务商密钥:
 
-API Key 会被嵌入刷入的固件;请像保管密钥本身一样保管已烧录的设备和
-`build/` 产物。
+- **设备端直接改,无需重新刷机:** 开机后 3 秒内按任意按键,设备开启
+  `TokenMon-Setup` 热点;手机/电脑连接后浏览器打开 `http://192.168.4.1`,
+  即可修改 Wi-Fi、全部服务商密钥与 Codex 端点。保存到 NVS,设备自动重启
+  生效——更换 Wi-Fi 环境、轮换 Key 都用这个入口。密钥留空表示保持不变;
+  "恢复默认"清空设备上保存的全部配置。热点为开放网络,请在可信环境使用。
+- **编译期:** 把 `main/app_config.example.h` 复制为 `main/app_config.h`
+  填写后重新编译。设备端(NVS)保存的值优先于编译期默认值。
+
+`app_config.h` 已被 git 忽略,仓库密钥扫描也会拒绝 `sk-…` 形式的密钥进入
+版本库。API Key 会被嵌入刷入的固件;请像保管密钥本身一样保管已烧录的
+设备和 `build/` 产物。
 
 ## 数据流与线程
 

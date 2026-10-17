@@ -12,9 +12,9 @@ Supported data sources (all read with the user's own keys, end to end TLS):
 
 | Provider | Endpoint | Primary metric |
 | --- | --- | --- |
+| GLM Coding Plan ×3 | `GET {host}/api/monitor/usage/quota/limit` | 5-hour token quota usage %, monthly quota %; up to three plan accounts get one card each |
 | DeepSeek | `GET https://api.deepseek.com/user/balance` | account balance (CNY), granted/topped-up split |
 | Kimi (Moonshot) | `GET https://api.moonshot.cn/v1/users/me/balance` | available balance, voucher/cash split |
-| GLM Coding Plan ×3 | `GET {host}/api/monitor/usage/quota/limit` | 5-hour token quota usage %, monthly quota %; up to three plan accounts get one card each |
 
 The GLM quota endpoint is the same one used by Zhipu/Z.ai's official
 `glm-plan-usage` plugin. Codex subscription usage has no public API; the app
@@ -40,13 +40,24 @@ intervals are not automatically better.
 
 ## Configuration
 
-Copy `main/app_config.example.h` to `main/app_config.h` and fill in your Wi-Fi
-credentials and provider keys, then rebuild. `app_config.h` is git-ignored and
-the repository secret scan rejects committed keys. Flashing the unconfigured
-build shows a status page explaining this instead of an empty dashboard.
+Two ways to configure Wi-Fi credentials and provider keys:
 
-API keys are embedded in the flashed firmware; treat programmed devices and
-`build/` artifacts with the same care as the keys themselves.
+- **On device, no rebuild:** press any key within the first three seconds
+  after power-on. The device opens the `TokenMon-Setup` hotspot; connect
+  with a phone or computer and open `http://192.168.4.1` to edit the Wi-Fi
+  credentials, all provider keys, and the Codex endpoint. Values are saved
+  to NVS and take effect after the automatic reboot — this is how you move
+  the device to a new Wi-Fi network or rotate a key. Secret fields left
+  blank keep their current value; "restore defaults" clears everything
+  stored on the device. The hotspot is open: use it on a trusted network.
+- **Compile time:** copy `main/app_config.example.h` to `main/app_config.h`,
+  fill in values, and rebuild. Values saved on the device (NVS) override the
+  compile-time defaults.
+
+`app_config.h` is git-ignored, and the repository secret scan rejects
+`sk-…`-style provider keys in tracked files. Keys are embedded in flashed
+firmware; treat programmed devices and `build/` artifacts with the same
+care as the keys themselves.
 
 ## Data flow and threading
 
