@@ -9,9 +9,11 @@ idf_component_register(
          "net_fetch.c"
          "app_core.c"
          "udp_log.c"
+         "setup_portal.c"
+         "app_cfg.c"
          "ui_dashboard.c"
          "../assets/fonts/app_font_14.c"
          "../assets/fonts/app_font_24.c"
     INCLUDE_DIRS "."
-    REQUIRES bsp esp_event esp_netif esp_timer esp_wifi nvs_flash esp-tls lwip mbedtls
+    REQUIRES bsp esp_event esp_netif esp_timer esp_wifi nvs_flash esp-tls lwip mbedtls esp_http_server
 )

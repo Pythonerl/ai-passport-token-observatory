@@ -26,6 +26,7 @@ SRC_FILES = [
     ROOT / "main" / "provider.c",
     ROOT / "main" / "app_sched.c",
     ROOT / "main" / "app_core.h",
+    ROOT / "main" / "setup_portal.c",
 ]
 FONT_TTF = ROOT / "assets" / "fonts" / "NotoSansSC_400Regular.ttf"
 OUTPUTS = [

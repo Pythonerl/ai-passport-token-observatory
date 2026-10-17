@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "app_cfg.h"
 #include "app_sched.h"
 #include "esp_log.h"
 #include "esp_netif.h"
@@ -15,13 +16,6 @@
 #include "net_fetch.h"
 #include "nvs.h"
 #include "udp_log.h"
-
-// 编译期配置:优先使用用户的 app_config.h,缺失时退回示例占位值(按未配置处理)。
-#if __has_include("app_config.h")
-#include "app_config.h"
-#else
-#include "app_config.example.h"
-#endif
 
 static const char *TAG = "app_core";
 
@@ -57,47 +51,27 @@ static bool str_set(const char *s)
     return s && s[0] && strncmp(s, "YourWifi", 8) != 0;
 }
 
-// GLM 三个套餐槽位。槽位 1 同时兼容旧的单账号宏 APP_GLM_TOKEN。
-#if !defined(APP_GLM_TOKEN_1) && defined(APP_GLM_TOKEN_PRO_ME)
-#define APP_GLM_TOKEN_1 APP_GLM_TOKEN_PRO_ME
-#elif !defined(APP_GLM_TOKEN_1) && defined(APP_GLM_TOKEN)
-#define APP_GLM_TOKEN_1 APP_GLM_TOKEN
-#endif
-#if !defined(APP_GLM_TOKEN_2) && defined(APP_GLM_TOKEN_MAX_GROUP)
-#define APP_GLM_TOKEN_2 APP_GLM_TOKEN_MAX_GROUP
-#endif
-#if !defined(APP_GLM_TOKEN_3) && defined(APP_GLM_TOKEN_MAX_LML)
-#define APP_GLM_TOKEN_3 APP_GLM_TOKEN_MAX_LML
-#endif
-#ifndef APP_GLM_TOKEN_1
-#define APP_GLM_TOKEN_1 ""
-#endif
-#ifndef APP_GLM_TOKEN_2
-#define APP_GLM_TOKEN_2 ""
-#endif
-#ifndef APP_GLM_TOKEN_3
-#define APP_GLM_TOKEN_3 ""
-#endif
-
 static const char *glm_token(provider_id_t id)
 {
+    const app_cfg_t *c = app_cfg();
     switch (id) {
-    case PROV_GLM_1: return APP_GLM_TOKEN_1;
-    case PROV_GLM_2: return APP_GLM_TOKEN_2;
-    case PROV_GLM_3: return APP_GLM_TOKEN_3;
+    case PROV_GLM_1: return c->glm_tok[0];
+    case PROV_GLM_2: return c->glm_tok[1];
+    case PROV_GLM_3: return c->glm_tok[2];
     default: return NULL;
     }
 }
 
 static bool prov_configured(provider_id_t id)
 {
+    const app_cfg_t *c = app_cfg();
     switch (id) {
-    case PROV_DEEPSEEK: return str_set(APP_DEEPSEEK_KEY);
-    case PROV_KIMI: return str_set(APP_KIMI_KEY);
+    case PROV_DEEPSEEK: return str_set(c->ds_key);
+    case PROV_KIMI: return str_set(c->kimi_key);
     case PROV_GLM_1:
     case PROV_GLM_2:
     case PROV_GLM_3: return str_set(glm_token(id));
-    case PROV_CODEX: return str_set(APP_CODEX_URL);
+    case PROV_CODEX: return str_set(c->codex_url);
     default: return false;
     }
 }
@@ -106,33 +80,34 @@ static bool prov_configured(provider_id_t id)
 static bool build_request(provider_id_t id, char *url, size_t url_len,
                           char *auth, size_t auth_len, char *host, size_t host_len)
 {
+    const app_cfg_t *c = app_cfg();
     host[0] = '\0';
     switch (id) {
     case PROV_DEEPSEEK:
         if (!prov_configured(id)) return false;
         snprintf(url, url_len, "https://api.deepseek.com/user/balance");
-        snprintf(auth, auth_len, "Bearer %s", APP_DEEPSEEK_KEY);
+        snprintf(auth, auth_len, "Bearer %s", c->ds_key);
         snprintf(host, host_len, "api.deepseek.com");
         return true;
     case PROV_KIMI:
         if (!prov_configured(id)) return false;
         snprintf(url, url_len, "https://api.moonshot.cn/v1/users/me/balance");
-        snprintf(auth, auth_len, "Bearer %s", APP_KIMI_KEY);
+        snprintf(auth, auth_len, "Bearer %s", c->kimi_key);
         snprintf(host, host_len, "api.moonshot.cn");
         return true;
     case PROV_GLM_1:
     case PROV_GLM_2:
     case PROV_GLM_3:
         if (!prov_configured(id)) return false;
-        snprintf(url, url_len, "%s/api/monitor/usage/quota/limit", APP_GLM_HOST);
+        snprintf(url, url_len, "%s/api/monitor/usage/quota/limit", c->glm_host);
         snprintf(auth, auth_len, "%s", glm_token(id)); // 该接口不带 Bearer 前缀
-        snprintf(host, host_len, "%s", APP_GLM_HOST);
+        snprintf(host, host_len, "%s", c->glm_host);
         return true;
     case PROV_CODEX:
         if (!prov_configured(id)) return false;
-        snprintf(url, url_len, "%s", APP_CODEX_URL);
-        snprintf(auth, auth_len, "%s", APP_CODEX_AUTH);
-        snprintf(host, host_len, "%s", APP_CODEX_URL);
+        snprintf(url, url_len, "%s", c->codex_url);
+        snprintf(auth, auth_len, "%s", c->codex_auth);
+        snprintf(host, host_len, "%s", c->codex_url);
         return true;
     default:
         return false;
@@ -222,8 +197,9 @@ static void refresh_provider(provider_id_t id)
     provider_metrics_t m;
     bool parsed = false;
     if (id == PROV_CODEX) {
+        const app_cfg_t *c = app_cfg();
         parsed = (r.err == 0) && r.http_status == 200 &&
-                 provider_parse_custom(r.body, APP_CODEX_JPATH, APP_CODEX_IS_PCT != 0, &m) == 0;
+                 provider_parse_custom(r.body, c->codex_jpath, c->codex_is_pct, &m) == 0;
     } else if (r.err == 0 && r.http_status == 200) {
         parsed = provider_parse_body(id, r.body, &m) == 0;
     }
@@ -305,7 +281,8 @@ static void worker_task(void *arg)
         xSemaphoreGive(s_lock);
 
         if (configured) {
-            wifi_ok = wifi_sta_connect(APP_WIFI_SSID, APP_WIFI_PASS,
+            const app_cfg_t *c = app_cfg();
+            wifi_ok = wifi_sta_connect(c->wifi_ssid, c->wifi_pass,
                                        WIFI_MAX_ATTEMPTS, WIFI_PER_ATTEMPT_MS);
         } else {
             wifi_ok = false;
@@ -347,8 +324,10 @@ void app_core_start(void)
     started = true;
 
     memset(&s_snap, 0, sizeof(s_snap));
-    s_snap.wifi_configured = str_set(APP_WIFI_SSID) && str_set(APP_WIFI_PASS);
-    s_snap.interval_sec = refresh_sched_clamp(APP_REFRESH_SEC);
+    app_cfg_load();
+    const app_cfg_t *c = app_cfg();
+    s_snap.wifi_configured = str_set(c->wifi_ssid) && str_set(c->wifi_pass);
+    s_snap.interval_sec = refresh_sched_clamp(60);
     s_sched = (refresh_sched_t){ .interval_sec = s_snap.interval_sec, .fail_streak = 0 };
     strlcpy(s_snap.ip_str, "0.0.0.0", sizeof(s_snap.ip_str));
 

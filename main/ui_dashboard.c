@@ -134,8 +134,10 @@ static void show_status(void)
         lv_label_set_text(s_st_title, "Token 观测站");
 
         s_st_sub = label_new(s_scr_status, &s_f14, C_DIM);
-        lv_obj_align(s_st_sub, LV_ALIGN_TOP_MID, 0, 112);
-        lv_label_set_text_fmt(s_st_sub, "大模型额度观测台 v%s", APP_VERSION);
+        lv_obj_set_width(s_st_sub, 216);
+        lv_obj_set_style_text_align(s_st_sub, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_align(s_st_sub, LV_ALIGN_TOP_MID, 0, 108);
+        lv_label_set_text_fmt(s_st_sub, "大模型额度观测台 v%s\n开机3秒内按任意键 配置Wi-Fi与密钥", APP_VERSION);
 
         s_st_icon = label_new(s_scr_status, &s_f24, C_ACCENT);
         lv_obj_align(s_st_icon, LV_ALIGN_TOP_MID, 0, 148);

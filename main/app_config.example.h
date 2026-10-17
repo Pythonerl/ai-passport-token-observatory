@@ -1,6 +1,9 @@
 // main/app_config.example.h —— 「Token 观测站」编译期配置模板。
 //
-// 使用方法:把本文件复制为 main/app_config.h 并填入真实值。
+// 更推荐免刷机方式:开机 3 秒内按任意键进入配置模式,连热点
+// TokenMon-Setup 后浏览器打开 192.168.4.1 直接改(NVS 保存,优先于本文件)。
+//
+// 编译期方式:把本文件复制为 main/app_config.h 并填入真实值。
 // app_config.h 已被 .gitignore 排除,永远不会被提交;仓库检查也会拦截密钥。
 //
 // 安全提醒:API Key 等同于账户密码。只在本地填写,不要分享固件 bin 之外

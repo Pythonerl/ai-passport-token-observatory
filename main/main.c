@@ -11,6 +11,7 @@
 #include "bsp_i2c.h"
 #include "bsp_pins.h"
 #include "key_guard.h"
+#include "setup_portal.h"
 #include "ui_dashboard.h"
 
 #include "esp_log.h"
@@ -43,6 +44,10 @@ static void input_task(void *arg)
     input_event_t input;
     for (;;) {
         if (xQueueReceive(s_input_queue, &input, portMAX_DELAY) != pdTRUE) continue;
+        if (setup_portal_active()) {
+            setup_portal_key(input.btn, input.event);
+            continue;
+        }
         // UI 操作在输入任务里做,持 LVGL 锁;慢操作全部在 app_core 工作任务里。
         if (!bsp_lvgl_lock(500)) continue;
         ui_key(input.btn, input.event);
@@ -97,6 +102,14 @@ void app_main(void)
     if (s_key_guard.armed) {
         const bool released = bsp_button_read_mv() >= BSP_BTN_MV_RELEASED_MIN;
         key_guard_sync_released(&s_key_guard, released);
+    }
+
+    // 开机 3 秒内按任意键 → 进入 SoftAP 配置模式(免刷机改 Wi-Fi/密钥)。
+    {
+        input_event_t boot_key;
+        if (xQueueReceive(s_input_queue, &boot_key, pdMS_TO_TICKS(3000)) == pdTRUE) {
+            setup_portal_run(); // 保存路径内部重启;"不保存退出"返回后继续启动
+        }
     }
 
     app_core_start(); // 网络工作任务(连接 Wi-Fi + 周期拉取)
