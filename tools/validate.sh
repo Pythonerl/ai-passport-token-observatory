@@ -29,6 +29,18 @@ run_static_checks() {
         -o "${test_dir}/test_ui_pixel_math"
     "${test_dir}/test_ui_pixel_math"
     "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain \
+        tests/test_jpath.c main/jpath.c \
+        -o "${test_dir}/test_jpath"
+    "${test_dir}/test_jpath"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain \
+        tests/test_provider.c main/provider.c main/jpath.c \
+        -o "${test_dir}/test_provider"
+    "${test_dir}/test_provider"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain \
+        tests/test_app_sched.c main/app_sched.c \
+        -o "${test_dir}/test_app_sched"
+    "${test_dir}/test_app_sched"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain \
         tests/test_demo_navigation.c main/demo_navigation.c \
         -o "${test_dir}/test_demo_navigation"
     "${test_dir}/test_demo_navigation"
