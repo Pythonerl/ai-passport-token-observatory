@@ -15,6 +15,12 @@
 - 添加字库前评估 Flash 与内部 RAM 影响；ESP32-C3 无 PSRAM。
 - 不提交许可不允许分发的字库。
 
+| 文件 | 来源与许可 | 用途 |
+| --- | --- | --- |
+| [`fonts/NotoSansSC_400Regular.ttf`](fonts/NotoSansSC_400Regular.ttf) | Noto Sans SC Regular，SIL Open Font License 1.1（[许可](fonts/NotoSansSC-OFL-LICENSE.txt)）。取自 npm 包 `@expo-google-fonts/noto-sans-sc@5.3.0` 的压缩包。 | 「Token 观测站」应用字库子集的母本。 |
+| [`fonts/app_font_14.c`](fonts/app_font_14.c) | 用 `lv_font_conv@1.5.3` 从上述 TTF 生成（14 px、bpp 4、不压缩；可打印 ASCII + 应用简体中文清单）。 | 观测站 UI 的正文/标签；可用 `python tools/gen_fonts.py` 重新生成。 |
+| [`fonts/app_font_24.c`](fonts/app_font_24.c) | 同上参数、24 px。 | 观测站 UI 的标题与大数值。 |
+
 ## 图片（images）
 
 可复用的源图与生成的显示资产放在 `images/`。

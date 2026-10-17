@@ -17,6 +17,12 @@ Store reusable font files and generated font sources in `fonts/`.
 - Check Flash and internal-RAM impact before adding a font; the ESP32-C3 has no PSRAM.
 - Do not commit fonts whose license does not permit redistribution.
 
+| File | Source and license | Use |
+| --- | --- | --- |
+| [`fonts/NotoSansSC_400Regular.ttf`](fonts/NotoSansSC_400Regular.ttf) | Noto Sans SC Regular, SIL Open Font License 1.1 ([license](fonts/NotoSansSC-OFL-LICENSE.txt)). Extracted from the npm package `@expo-google-fonts/noto-sans-sc@5.3.0` tarball. | Master font for the Token Observatory application subsets. |
+| [`fonts/app_font_14.c`](fonts/app_font_14.c) | Generated from the TTF above by `lv_font_conv@1.5.3` (14 px, bpp 4, no compression; printable ASCII plus the application's Simplified-Chinese inventory). | Body/labels of the Token Observatory UI; regenerate with `python tools/gen_fonts.py`. |
+| [`fonts/app_font_24.c`](fonts/app_font_24.c) | Same generator settings at 24 px. | Titles and large metric values of the Token Observatory UI. |
+
 ## Images
 
 Store reusable source images and generated display assets in `images/`.

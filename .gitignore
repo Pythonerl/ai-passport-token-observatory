@@ -5,6 +5,9 @@ managed_components/
 .vscode/
 .idea/
 
+# 本机私密配置(Wi-Fi 密码 / API Key),绝不提交。
+main/app_config.h
+
 # Generated repository-local links; canonical skill sources live in skills/.
 /.agents/skills/passport-develop
 /.agents/skills/passport-setup
