@@ -46,9 +46,10 @@ void app_core_start(void);
 // 拿到一致快照返回 true。
 bool app_core_snapshot(app_snapshot_t *out);
 
-// UI 请求:立即刷新一轮 / 重试 Wi-Fi 连接。
+// UI 请求:立即刷新一轮 / 重试 Wi-Fi 连接 / 进入配置门户。
 void app_core_request_refresh(void);
 void app_core_request_wifi_retry(void);
+void app_core_request_setup(void);
 
 // 刷新间隔设置(钳制 10..3600):更新快照、写 NVS、唤醒工作任务立即生效。
 // 返回实际生效值。

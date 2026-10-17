@@ -42,14 +42,16 @@ intervals are not automatically better.
 
 Two ways to configure Wi-Fi credentials and provider keys:
 
-- **On device, no rebuild:** press any key within the first three seconds
-  after power-on. The device opens the `TokenMon-Setup` hotspot; connect
-  with a phone or computer and open `http://192.168.4.1` to edit the Wi-Fi
-  credentials, all provider keys, and the Codex endpoint. Values are saved
-  to NVS and take effect after the automatic reboot — this is how you move
-  the device to a new Wi-Fi network or rotate a key. Secret fields left
-  blank keep their current value; "restore defaults" clears everything
-  stored on the device. The hotspot is open: use it on a trusted network.
+- **On device, no rebuild:** either press any key within the first three
+  seconds after power-on (the status page shows the hint), or long-press
+  **UP on the settings screen** at any time. The device opens the
+  `TokenMon-Setup` hotspot; connect with a phone or computer and open
+  `http://192.168.4.1` to edit the Wi-Fi credentials, all provider keys,
+  and the Codex endpoint. Values are saved to NVS and take effect after the
+  automatic reboot — this is how you move the device to a new Wi-Fi network
+  or rotate a key. Secret fields left blank keep their current value;
+  "restore defaults" clears everything stored on the device. The hotspot is
+  open: use it on a trusted network.
 - **Compile time:** copy `main/app_config.example.h` to `main/app_config.h`,
   fill in values, and rebuild. Values saved on the device (NVS) override the
   compile-time defaults.

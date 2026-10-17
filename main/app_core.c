@@ -15,7 +15,9 @@
 #include "freertos/task.h"
 #include "net_fetch.h"
 #include "nvs.h"
+#include "setup_portal.h"
 #include "udp_log.h"
+#include "ui_dashboard.h"
 
 static const char *TAG = "app_core";
 
@@ -32,6 +34,7 @@ static const char *TAG = "app_core";
 typedef enum {
     WORKER_MSG_REFRESH = 1,
     WORKER_MSG_WIFI_RETRY,
+    WORKER_MSG_SETUP, // 请求进入配置门户(设置页长按上键)
 } worker_msg_t;
 
 static SemaphoreHandle_t s_lock;
@@ -148,6 +151,13 @@ void app_core_request_wifi_retry(void)
 {
     if (!s_queue) return;
     worker_msg_t msg = WORKER_MSG_WIFI_RETRY;
+    xQueueSend(s_queue, &msg, 0);
+}
+
+void app_core_request_setup(void)
+{
+    if (!s_queue) return;
+    worker_msg_t msg = WORKER_MSG_SETUP;
     xQueueSend(s_queue, &msg, 0);
 }
 
@@ -298,7 +308,11 @@ static void worker_task(void *arg)
             // 等待 UI 的重试请求,或 45 秒后自动重试:弱信号/漫游型路由器
             // 环境下掉线是常态,依赖用户按键体验太差。
             ESP_LOGW(TAG, "Wi-Fi 不可用,45 秒后自动重试(按 OK 立即重试)");
-            xQueueReceive(s_queue, &msg, pdMS_TO_TICKS(45000));
+            if (xQueueReceive(s_queue, &msg, pdMS_TO_TICKS(45000)) == pdTRUE &&
+                msg == WORKER_MSG_SETUP) {
+                setup_portal_run();
+                ui_return();
+            }
             continue;
         }
 
@@ -308,6 +322,12 @@ static void worker_task(void *arg)
             int32_t delay_sec = refresh_sched_delay(&s_sched);
             BaseType_t got = xQueueReceive(s_queue, &msg, pdMS_TO_TICKS(delay_sec * 1000));
             if (got == pdTRUE && msg == WORKER_MSG_WIFI_RETRY) break;
+            if (got == pdTRUE && msg == WORKER_MSG_SETUP) {
+                // 门户保存路径内部重启;退出则恢复页面并重连 Wi-Fi。
+                setup_portal_run();
+                ui_return();
+                break;
+            }
             if (wifi_sta_status()->state != WIFI_STA_CONNECTED) {
                 // 自动重连失败过久,回到阶段一
                 break;

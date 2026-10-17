@@ -34,6 +34,12 @@ static QueueHandle_t s_input_queue;
 static TaskHandle_t s_input_task;
 static volatile bool s_input_ready;
 
+// 开机配置窗口:窗口期内到达的按键不进 UI,而是触发配置模式。
+// 标志代替双消费者抢队列(分发任务与 app_main 各自 xQueueReceive 会竞态,
+// 按键常被分发任务先取走导致窗口失灵)。
+static volatile bool s_boot_window = true;
+static volatile bool s_boot_key_seen;
+
 // 与 demo main.c 相同的唤醒守卫:按键唤醒时那颗键还按着,先吞掉它的动作。
 #define KEY_GUARD_MAX_US (10LL * 1000 * 1000)
 static key_guard_t s_key_guard;
@@ -44,6 +50,10 @@ static void input_task(void *arg)
     input_event_t input;
     for (;;) {
         if (xQueueReceive(s_input_queue, &input, portMAX_DELAY) != pdTRUE) continue;
+        if (s_boot_window) {
+            s_boot_key_seen = true; // 触发键,由 app_main 的窗口循环消费
+            continue;
+        }
         if (setup_portal_active()) {
             setup_portal_key(input.btn, input.event);
             continue;
@@ -104,20 +114,33 @@ void app_main(void)
         key_guard_sync_released(&s_key_guard, released);
     }
 
-    // 开机 3 秒内按任意键 → 进入 SoftAP 配置模式(免刷机改 Wi-Fi/密钥)。
-    {
-        input_event_t boot_key;
-        if (xQueueReceive(s_input_queue, &boot_key, pdMS_TO_TICKS(3000)) == pdTRUE) {
-            setup_portal_run(); // 保存路径内部重启;"不保存退出"返回后继续启动
-        }
-    }
-
-    app_core_start(); // 网络工作任务(连接 Wi-Fi + 周期拉取)
-
+    // 界面先上屏:状态页自带"开机3秒内按任意键 配置"提示,用户看得见窗口。
     if (bsp_lvgl_lock(1000)) {
         ui_init();
         bsp_lvgl_unlock();
         s_input_ready = true;
     }
+
+    // 开机 3 秒内按任意键 → 进入 SoftAP 配置模式(免刷机改 Wi-Fi/密钥)。
+    // 状态页上同步显示倒计时,倒计时结束未按键即进正常流程。
+    {
+        const int64_t deadline = esp_timer_get_time() + 3000 * 1000LL;
+        int last_sec = -1;
+        while (!s_boot_key_seen && esp_timer_get_time() < deadline) {
+            int left = (int)((deadline - esp_timer_get_time()) / 1000000LL) + 1;
+            if (left != last_sec) {
+                ui_boot_countdown(left);
+                last_sec = left;
+            }
+            vTaskDelay(pdMS_TO_TICKS(50));
+        }
+        s_boot_window = false;
+        ui_boot_countdown(0);
+        if (s_boot_key_seen) {
+            setup_portal_run(); // 保存路径内部重启;"不保存退出"返回后继续启动
+        }
+    }
+
+    app_core_start(); // 网络工作任务(连接 Wi-Fi + 周期拉取)
     ESP_LOGI(TAG, "UI 就绪");
 }

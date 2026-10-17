@@ -66,6 +66,7 @@ static lv_obj_t *s_dash_big, *s_dash_label, *s_dash_bar, *s_dash_sub1, *s_dash_s
 static lv_obj_t *s_dash_foot, *s_dash_dots[PROV_COUNT], *s_dash_idx, *s_dash_hints;
 // 状态页部件
 static lv_obj_t *s_st_title, *s_st_sub, *s_st_icon, *s_st_text, *s_st_hint;
+static lv_obj_t *s_st_count; // 开机配网窗口倒计时(秒)
 // 详情页
 static lv_obj_t *s_dt_title, *s_dt_batt, *s_dt_body, *s_dt_hint;
 // 设置页
@@ -147,6 +148,11 @@ static void show_status(void)
         lv_obj_set_width(s_st_text, 212);
         lv_obj_set_style_text_align(s_st_text, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(s_st_text, LV_ALIGN_TOP_MID, 0, 196);
+        lv_label_set_text(s_st_text, "正在启动…");
+
+        s_st_count = label_new(s_scr_status, &s_f24, C_WARN);
+        lv_obj_align(s_st_count, LV_ALIGN_TOP_MID, 0, 238);
+        lv_obj_add_flag(s_st_count, LV_OBJ_FLAG_HIDDEN);
 
         s_st_hint = label_new(s_scr_status, &s_f14, C_DIM);
         lv_obj_align(s_st_hint, LV_ALIGN_TOP_MID, 0, 284);
@@ -290,7 +296,7 @@ static void show_settings(void)
 
         s_sg_hint = label_new(s_scr_settings, &s_f14, C_DIM);
         lv_obj_align(s_sg_hint, LV_ALIGN_TOP_MID, 0, 288);
-        lv_label_set_text(s_sg_hint, "▲▼ 调整 · OK长按 返回");
+        lv_label_set_text(s_sg_hint, "▲▼调整 · ▲长按配网 · OK长按返回");
     }
     screen_load(SCR_SETTINGS, s_scr_settings);
 }
@@ -524,12 +530,44 @@ void ui_key(bsp_btn_t btn, bsp_btn_ev_t ev)
     case SCR_SETTINGS:
         if (ev == BSP_BTN_CLICK && btn == BSP_BTN_UP) interval_step(-1);
         else if (ev == BSP_BTN_CLICK && btn == BSP_BTN_DOWN) interval_step(1);
+        else if (btn == BSP_BTN_UP && ev == BSP_BTN_LONG) {
+            // 随时可进的配网入口:不必掐开机 3 秒窗口。
+            app_core_request_setup();
+        }
         else if (btn == BSP_BTN_OK && ev == BSP_BTN_LONG) show_dash();
         break;
     }
 }
 
 // ---------- 入口 ----------
+
+// 开机配网窗口倒计时:seconds_left>0 显示秒数;<=0 隐藏。内部自持锁,
+// 由 app_main 的窗口循环调用。
+void ui_boot_countdown(int seconds_left)
+{
+    if (!s_st_count) return;
+    if (!bsp_lvgl_lock(200)) return;
+    if (seconds_left > 0) {
+        lv_obj_clear_flag(s_st_count, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text_fmt(s_st_count, "%d", seconds_left);
+    } else {
+        lv_obj_add_flag(s_st_count, LV_OBJ_FLAG_HIDDEN);
+    }
+    bsp_lvgl_unlock();
+}
+
+// 配网门户退出后调用:门户删除了自己的屏幕,这里恢复应用当前页面。
+void ui_return(void)
+{
+    if (!bsp_lvgl_lock(1000)) return;
+    switch (s_screen) {
+    case SCR_DASH: show_dash(); break;
+    case SCR_DETAIL: show_detail(); break;
+    case SCR_SETTINGS: show_settings(); break;
+    default: show_status(); break;
+    }
+    bsp_lvgl_unlock();
+}
 
 void ui_init(void)
 {
